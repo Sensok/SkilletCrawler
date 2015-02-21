@@ -14,7 +14,7 @@ import java.net.URL;
 import java.util.LinkedList;
 
 /**
- * @author Adam
+ * @author Jordan Jensen
  */
 public class WebCrawler {
 
