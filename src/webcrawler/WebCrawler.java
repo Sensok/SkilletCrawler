@@ -29,10 +29,20 @@ public class WebCrawler {
     /**
      * @param args the command line arguments
      */
+    public static Statement stmt;
+    public static Connection con;
+    public static int uId;
+    public static int rId;
     public static void main(String[] args) throws IOException {
         ArrayList<String> list = new ArrayList();
         list.add("http://allrecipes.com/cooks/top-reviewer-cooks.aspx");
+        try {        
+            init();
+        } catch (SQLException ex) {
+            Logger.getLogger(WebCrawler.class.getName()).log(Level.SEVERE, null, ex);
+        }
         getData(list);
+    
     }
     
     public static void getData(ArrayList<String> list) throws IOException
@@ -43,7 +53,6 @@ public class WebCrawler {
         while(!list.isEmpty() && page < 6)
         {            
             URL my_url = new URL(list.get(0));   
-            System.out.println(list.get(0));
             HttpURLConnection huc = (HttpURLConnection) my_url.openConnection();
             int responseCode = huc.getResponseCode();
             
@@ -68,7 +77,6 @@ public class WebCrawler {
         }
         list.remove(0);
         getRecipes(list);
-        System.out.println(i);
     }
 
     private static String parse(String strTemp) throws MalformedURLException {
@@ -76,7 +84,6 @@ public class WebCrawler {
         URL temp = new URL(strTemp);
         String protocol = temp.getProtocol();
         strTemp = protocol + "://" + temp.getHost() + temp.getPath();
-        System.out.println(strTemp);
         return strTemp;
         
     }
@@ -96,6 +103,11 @@ public class WebCrawler {
             if(count == 0){
                 count++;
                 userName = list.get(0).substring(list.get(0).indexOf("cook/") + 5, list.get(0).indexOf("/re"));
+                try {
+                    insertUser(userName);
+                } catch (SQLException ex) {
+                    Logger.getLogger(WebCrawler.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
             URL my_url = new URL(list.get(0));           
             HttpURLConnection huc = (HttpURLConnection) my_url.openConnection();
@@ -116,18 +128,20 @@ public class WebCrawler {
                         recipeURL = strTemp.substring(strTemp.indexOf("href=") + 6,
                                 strTemp.indexOf("aspx\">") + 4);
                         recipeName = strTemp.substring(strTemp.indexOf("detail.aspx\">") + 13,
-                                strTemp.indexOf("</a>"));
+                                strTemp.indexOf("</a>")).replace("\'", "\'\'");
                         dataCount +=2;
                         
                     }
                     if(dataCount == 3){
                         dataCount = 0;
                         try{
-                        sendToDB(userName, recipeName, recipeURL, userRating);
+                        sendToDB(recipeName, recipeURL, userRating);
                         }
                         catch(SQLException e){
                             e.printStackTrace();
                         }
+                        rId++;
+                        System.out.println(recipeName + " " + recipeURL + " " + userRating);
                     }
                     if (strTemp.contains("?Page=") && strTemp.contains("<a href"))
                     {
@@ -148,28 +162,39 @@ public class WebCrawler {
                 page = 2;
                 list.remove(0);
                 userName = list.get(0).substring(list.get(0).indexOf("cook/") + 5, list.get(0).indexOf("/re"));
+                try {
+                    insertUser(userName);
+                } catch (SQLException ex) {
+                    Logger.getLogger(WebCrawler.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                uId++;
             }
             
         }
     }
 
-    private static void sendToDB(String userName, String recipeName, String recipeURL, String userRating) throws SQLException {
+    private static void sendToDB(String recipeName, String recipeURL, String userRating) throws SQLException {
+        int temp = stmt.executeUpdate("insert into item_table (title, url) values (\'" + recipeName + "\',\'" + recipeURL + "\')"); 
+        ResultSet rs = stmt.executeQuery("select LAST_INSERT_ID() from item_table");
+        temp = stmt.executeUpdate("insert into rating_table (user_id, item_id, rating_value) values (\'" + uId + "\',\'" + rId + "\',\'" + userRating + "\')");
+    }
+    private static void insertUser(String userName) throws SQLException {   
+        int temp = stmt.executeUpdate("insert into user_table (name) values (\'" + userName + "\')");
+    }
+
+    private static void init() throws SQLException {
         try {
             Class.forName("com.mysql.jdbc.Driver");
         } catch (ClassNotFoundException ex) {
             ex.printStackTrace();
             Logger.getLogger(WebCrawler.class.getName()).log(Level.SEVERE, null, ex);
         }
-        Connection con = DriverManager.getConnection(
+        con = DriverManager.getConnection(
                          "jdbc:mysql://dev.maurasoftware.com:3306/skillet",
                          "skilletAdmin",
                          "Twitchelltwit");
-
-        Statement stmt = con.createStatement();
-        ResultSet rs = stmt.executeQuery("insert into user_table value (" + userName + "); select LAST_INSERT_ID() from user_table");
-        String uId = rs.getString("LAST_INSERT_ID()");
-        rs = stmt.executeQuery("insert into item_table value (" + recipeName + "); select LAST_INSERT_ID() from item_table");
-        String rId = rs.getString("LAST_INSERT_ID()");
-        rs = stmt.executeQuery("insert into rating_table value (" + uId + "," + rId + "," + userRating + ")");
+        stmt = con.createStatement();
+        rId = 1;
+        uId = 1;
     }
 }
