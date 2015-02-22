@@ -34,7 +34,7 @@ public class WebCrawler {
     public static int uId;
     public static int rId;
     public static void main(String[] args) throws IOException {
-        ArrayList<String> list = new ArrayList();
+        LinkedList<String> list = new LinkedList();
         list.add("http://allrecipes.com/cooks/top-reviewer-cooks.aspx");
         try {        
             init();
@@ -45,7 +45,7 @@ public class WebCrawler {
     
     }
     
-    public static void getData(ArrayList<String> list) throws IOException
+    public static void getData(LinkedList<String> list) throws IOException
     {
         int i = 0;
         int page = 2;
@@ -88,7 +88,7 @@ public class WebCrawler {
         
     }
     
-    static void getRecipes(ArrayList<String> list) throws MalformedURLException, IOException
+    static void getRecipes(LinkedList<String> list) throws MalformedURLException, IOException
     {
         int page = 2;
         int count = 0;
@@ -105,6 +105,7 @@ public class WebCrawler {
                 userName = list.get(0).substring(list.get(0).indexOf("cook/") + 5, list.get(0).indexOf("/re"));
                 try {
                     insertUser(userName);
+                    System.out.println(userName);
                 } catch (SQLException ex) {
                     Logger.getLogger(WebCrawler.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -139,9 +140,8 @@ public class WebCrawler {
                         }
                         catch(SQLException e){
                             e.printStackTrace();
-                        }
-                        rId++;
-                        System.out.println(recipeName + " " + recipeURL + " " + userRating);
+                        }                        
+                        //System.out.println(recipeName + " " + recipeURL + " " + userRating);
                     }
                     if (strTemp.contains("?Page=") && strTemp.contains("<a href"))
                     {
@@ -155,6 +155,17 @@ public class WebCrawler {
                         page++;
                         list.set(0,toAdd);
                         break;
+                    }
+                    if(strTemp.contains("Uh-oh, looks like no one has reviewed this recipe yet.")){
+                        page = 2;
+                        list.remove(0);
+                        userName = list.get(0).substring(list.get(0).indexOf("cook/") + 5, list.get(0).indexOf("/re"));
+                        try {
+                            insertUser(userName);
+                        } catch (SQLException ex) {
+                            Logger.getLogger(WebCrawler.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                        uId++;
                     }
                 }  
             }
@@ -174,9 +185,19 @@ public class WebCrawler {
     }
 
     private static void sendToDB(String recipeName, String recipeURL, String userRating) throws SQLException {
-        int temp = stmt.executeUpdate("insert into item_table (title, url) values (\'" + recipeName + "\',\'" + recipeURL + "\')"); 
-        ResultSet rs = stmt.executeQuery("select LAST_INSERT_ID() from item_table");
-        temp = stmt.executeUpdate("insert into rating_table (user_id, item_id, rating_value) values (\'" + uId + "\',\'" + rId + "\',\'" + userRating + "\')");
+        int tempId = rId;
+        int temp = 0;
+        ResultSet rs = stmt.executeQuery("select id from item_table where title=\"" + recipeName + "\" and url=\"" + recipeURL + "\"");
+        if(rs.next()){
+            rId = rs.getInt("id");
+            temp = stmt.executeUpdate("insert into rating_table (user_id, item_id, rating_value) values (\'" + uId + "\',\'" + rId + "\',\'" + userRating + "\')");
+            rId = tempId;
+        }
+        else{
+            temp = stmt.executeUpdate("insert into item_table (title, url) values (\'" + recipeName + "\',\'" + recipeURL + "\')"); 
+            temp = stmt.executeUpdate("insert into rating_table (user_id, item_id, rating_value) values (\'" + uId + "\',\'" + rId + "\',\'" + userRating + "\')");
+            rId++;
+        }
     }
     private static void insertUser(String userName) throws SQLException {   
         int temp = stmt.executeUpdate("insert into user_table (name) values (\'" + userName + "\')");
