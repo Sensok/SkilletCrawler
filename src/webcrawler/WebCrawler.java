@@ -165,7 +165,6 @@ public class WebCrawler {
                         } catch (SQLException ex) {
                             Logger.getLogger(WebCrawler.class.getName()).log(Level.SEVERE, null, ex);
                         }
-                        uId++;
                     }
                 }  
             }
@@ -184,24 +183,37 @@ public class WebCrawler {
     }
 
     private static void sendToDB(String recipeName, String recipeURL, String userRating) throws SQLException {
-        int tempId = rId;
-        int temp = 0;
         ResultSet rs = stmt.executeQuery("select id from item_table where title=\"" + recipeName + "\" and url=\"" + recipeURL + "\"");
+        int temp;
         if(rs.next()){
             rId = rs.getInt("id");
-            temp = stmt.executeUpdate("insert into rating_table (user_id, item_id, rating_value) values (\'" + uId + "\',\'" + rId + "\',\'" + userRating + "\')");
-            rId = tempId;
+            rs = stmt.executeQuery("select id from rating_table where item_id=\"" + rId + "\" and user_id=\"" + uId + "\"");
+            if(!rs.next()){
+                temp = stmt.executeUpdate("insert into rating_table (user_id, item_id, rating_value) values (\'" + uId + "\',\'" + rId + "\',\'" + userRating + "\')");
+            }
         }
         else{
             temp = stmt.executeUpdate("insert into item_table (title, url) values (\'" + recipeName + "\',\'" + recipeURL + "\')"); 
-            temp = stmt.executeUpdate("insert into rating_table (user_id, item_id, rating_value) values (\'" + uId + "\',\'" + rId + "\',\'" + userRating + "\')");
-            rId++;
+            rs = stmt.executeQuery("select id from item_table where title=\"" + recipeName + "\" and url=\"" + recipeURL + "\"");
+            if(rs.next()){
+                rId = rs.getInt("id");
+                temp = stmt.executeUpdate("insert into rating_table (user_id, item_id, rating_value) values (\'" + uId + "\',\'" + rId + "\',\'" + userRating + "\')");
+                
+            }
+            
+            
         }
     }
     private static void insertUser(String userName) throws SQLException {   
        ResultSet rs = stmt.executeQuery("select id from user_table where name=\"" + userName + "\"");
-       if(!rs.next()){
-           int temp = stmt.executeUpdate("insert into user_table (name) values (\'" + userName + "\')");
+       if(rs.next()){
+           uId = rs.getInt("id");
+       }
+       else{
+            int temp = stmt.executeUpdate("insert into user_table (name) values (\'" + userName + "\')");
+            rs = stmt.executeQuery("select id from user_table where name=\"" + userName + "\"");
+            if(rs.next())
+                uId = rs.getInt("id");
        }
        
     }
