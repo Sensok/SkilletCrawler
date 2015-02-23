@@ -50,9 +50,9 @@ public class WebCrawler {
         int i = 0;
         int page = 2;
         
-        while(!list.isEmpty() && page < 6)
+        while(!list.isEmpty() && page < 7)
         {            
-            URL my_url = new URL(list.get(0));   
+            URL my_url = new URL(list.get(0));
             HttpURLConnection huc = (HttpURLConnection) my_url.openConnection();
             int responseCode = huc.getResponseCode();
             
@@ -64,7 +64,7 @@ public class WebCrawler {
                     
                     strTemp = parse(strTemp);
                     list.add(strTemp);
-                    i++;                   
+                    i++;
                 }
 
                 if (strTemp.contains("top-reviewer-cooks.aspx?Page=") && strTemp.contains("<a href"))
@@ -178,7 +178,6 @@ public class WebCrawler {
                 } catch (SQLException ex) {
                     Logger.getLogger(WebCrawler.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                uId++;
             }
             
         }
@@ -200,7 +199,11 @@ public class WebCrawler {
         }
     }
     private static void insertUser(String userName) throws SQLException {   
-        int temp = stmt.executeUpdate("insert into user_table (name) values (\'" + userName + "\')");
+       ResultSet rs = stmt.executeQuery("select id from user_table where name=\"" + userName + "\"");
+       if(!rs.next()){
+           int temp = stmt.executeUpdate("insert into user_table (name) values (\'" + userName + "\')");
+       }
+       
     }
 
     private static void init() throws SQLException {
